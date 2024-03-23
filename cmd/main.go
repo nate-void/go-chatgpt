@@ -207,7 +207,7 @@ func main() {
 	app := NewChatGPTWebServer()
 	err := app.Run(ctx)
 	if err != nil {
-		return
+		log.Fatalln(err)
 	}
 	ctx, stop := signal.NotifyContext(ctx, os.Kill, os.Interrupt)
 	defer stop()
