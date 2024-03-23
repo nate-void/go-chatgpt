@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path"
 	"strings"
 	"time"
 
@@ -99,7 +98,7 @@ func (r *ChatGPTWebServer) httpServer(ctx context.Context) {
 		if ctx.Request.URL.Path == "/admin/accounts" {
 			accountService.AccountProcess(ctx)
 		} else {
-			http.FileServer(http.Dir(path.Join(r.Frontend.AdminPath))).ServeHTTP(ctx.Writer, ctx.Request)
+			http.FileServer(http.Dir(r.Frontend.AdminPath)).ServeHTTP(ctx.Writer, ctx.Request)
 		}
 	})
 	if r.Chat.OpenAIProxy {

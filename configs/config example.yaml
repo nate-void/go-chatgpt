@@ -7,8 +7,8 @@ tokenizer:
   port: 9090
 
 frontend:
-  path: xxx
-  admin-path: web
+  path: frontend
+  admin-path: frontend
 
 chat:
   auth-user: 
