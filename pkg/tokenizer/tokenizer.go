@@ -2,6 +2,7 @@ package tokenizer
 
 import (
 	"bytes"
+	"chatgpt-web/pkg/config"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,7 +17,8 @@ type tokenInfo struct {
 }
 
 func GetTokenCount(message openai.ChatCompletionMessage, model string) (int, error) {
-	url := fmt.Sprintf("http://127.0.0.1:5000/tokenizer/%s", model)
+	cfg := config.GetConfig()
+	url := fmt.Sprintf("http://%s:%d/tokenizer/%s", cfg.Tokenizer.Host, cfg.Tokenizer.Port, model)
 	info := tokenInfo{}
 	if err := postJSON(url, &message, &info); err != nil {
 		return 0, err

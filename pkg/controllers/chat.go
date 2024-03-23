@@ -1,16 +1,20 @@
 package controllers
 
 import (
+	"chatgpt-web/pkg/data"
+	"chatgpt-web/pkg/db/mysql"
+	sensitive_filter "chatgpt-web/pkg/sensitive-filter"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/Arvintian/chatgpt-web/pkg/tokenizer"
-	"github.com/Arvintian/chatgpt-web/pkg/utils"
+	"chatgpt-web/pkg/tokenizer"
+	"chatgpt-web/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	ccache "github.com/karlseguin/ccache/v3"
@@ -23,10 +27,11 @@ const (
 )
 
 type ChatService struct {
-	client  *openai.Client
-	store   *ccache.Cache[ChatMessage]
-	params  ChatCompletionParams
-	account *AccountService
+	client         *openai.Client
+	store          *ccache.Cache[ChatMessage]
+	params         ChatCompletionParams
+	account        *AccountService
+	chatRecordData data.IChatRecordsData
 }
 
 type ChatCompletionParams struct {
@@ -78,11 +83,15 @@ func NewChatService(apiKey string, baseURL string, socksProxy string, params Cha
 		}
 		klog.Infof("use sock proxy: %s", proxyUrl)
 	}
+	db := mysql.GetDB()
+	chatRecordsData := data.NewChatRecordsData(db)
+
 	chat := ChatService{
-		client:  openai.NewClientWithConfig(config),
-		params:  params,
-		store:   ccache.New(ccache.Configure[ChatMessage]()),
-		account: account,
+		client:         openai.NewClientWithConfig(config),
+		params:         params,
+		store:          ccache.New(ccache.Configure[ChatMessage]()),
+		account:        account,
+		chatRecordData: chatRecordsData,
 	}
 	return &chat, nil
 }
@@ -114,6 +123,37 @@ func (chat *ChatService) ChatProcess(ctx *gin.Context) {
 		Role:            openai.ChatMessageRoleAssistant,
 		Text:            "",
 		ParentMessageId: messageID,
+	}
+	//过滤敏感词
+	chatPass := false
+	filter := sensitive_filter.GetFilter()
+	if filter != nil {
+		ok, _ := filter.Validate(message.Text)
+		if ok {
+			chatPass = true
+		}
+	}
+
+	if !chatPass {
+		result.Text = "触及到屏蔽词，不予回答"
+		cr := &data.ChatRecord{
+			UserMassage: message.Text,
+			AIMessage:   result.Text,
+			CreateAt:    time.Now().Unix(),
+		}
+		err := chat.chatRecordData.Add(cr)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		ctx.Header("Content-type", "application/octet-stream")
+		bytes, _ := json.Marshal(result)
+		_, err = ctx.Writer.Write(bytes)
+		if err != nil {
+			log.Println(err)
+		}
+		ctx.Writer.Flush()
+		return
 	}
 
 	messages, numTokens, tokenCount, err := chat.buildMessage(payload)

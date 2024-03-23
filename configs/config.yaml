@@ -1,0 +1,35 @@
+http:
+  host: 0.0.0.0
+  port: 1145
+
+tokenizer:
+  host: localhost
+  port: 9090
+
+frontend:
+  path: D:/Library/Code/Vuejs/MyProjects/chatgpt-web/dist
+  admin-path: web
+
+chat:
+  OpsKey: Nate20020227
+  OpsLink: /admin
+  auth-user: nate
+  auth-password: nate520
+  socks-proxy:
+  chat-session-TTL: 30
+  chat-min-response-tokens: 600
+  openai-key: openai-key
+  openai-base-url: https://api.openai.com/v1
+  openai-model: gpt-3.5-turbo
+  openai-max-tokens: 4096
+  openai-temperature: 80
+  openai-presence-penalty: 100
+  openai-frequency-penalty: 0
+  openai-proxy: false
+  show-version: false
+
+sensitive:
+  dict: https://raw.githubusercontent.com/importcjj/sensitive/master/dict/dict.txt
+
+DB:
+  DSN: nate:nate20020227@tcp(106.54.56.10:3306)/chatGPT?collation=utf8mb4_unicode_ci&charset=utf8mb4

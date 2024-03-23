@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Arvintian/chatgpt-web/pkg/controllers"
+	"chatgpt-web/pkg/controllers"
 	"github.com/gin-gonic/gin"
 	"k8s.io/klog/v2"
 )
