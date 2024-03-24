@@ -14,6 +14,7 @@ type ChatRecord struct {
 
 type IChatRecordsData interface {
 	Add(*ChatRecord) error
+	AddSensitive(cr *ChatRecord) error
 }
 type ChatRecordsData struct {
 	db *sql.DB
@@ -26,11 +27,22 @@ func NewChatRecordsData(db *sql.DB) IChatRecordsData {
 }
 
 func (data *ChatRecordsData) Add(cr *ChatRecord) (err error) {
-	sqlStr := "insert into chat_records(user_msg,ai_msg,create_at)"
+	sqlStr := "INSERT INTO chat_records(user_msg, ai_msg, create_at) VALUES(?, ?, ?)"
 	res, err := data.db.Exec(sqlStr, cr.UserMassage, cr.AIMessage, cr.CreateAt)
 	if err != nil {
 		log.Println(err)
-		return
+		return err
+	}
+	cr.ID, _ = res.LastInsertId()
+	return nil
+}
+
+func (data *ChatRecordsData) AddSensitive(cr *ChatRecord) (err error) {
+	sqlStr := "INSERT INTO chat_sensitive _records(user_msg, ai_msg, create_at) VALUES(?, ?, ?)"
+	res, err := data.db.Exec(sqlStr, cr.UserMassage, cr.AIMessage, cr.CreateAt)
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 	cr.ID, _ = res.LastInsertId()
 	return nil

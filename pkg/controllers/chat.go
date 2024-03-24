@@ -3,7 +3,7 @@ package controllers
 import (
 	"chatgpt-web/pkg/data"
 	"chatgpt-web/pkg/db/mysql"
-	sensitive_filter "chatgpt-web/pkg/sensitive-filter"
+	sensitiveFilter "chatgpt-web/pkg/sensitive-filter"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,8 +17,8 @@ import (
 	"chatgpt-web/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	ccache "github.com/karlseguin/ccache/v3"
-	openai "github.com/sashabaranov/go-openai"
+	"github.com/karlseguin/ccache/v3"
+	"github.com/sashabaranov/go-openai"
 	"k8s.io/klog/v2"
 )
 
@@ -126,7 +126,7 @@ func (chat *ChatService) ChatProcess(ctx *gin.Context) {
 	}
 	//过滤敏感词
 	chatPass := false
-	filter := sensitive_filter.GetFilter()
+	filter := sensitiveFilter.GetFilter()
 	if filter != nil {
 		ok, _ := filter.Validate(message.Text)
 		if ok {
@@ -141,7 +141,8 @@ func (chat *ChatService) ChatProcess(ctx *gin.Context) {
 			AIMessage:   result.Text,
 			CreateAt:    time.Now().Unix(),
 		}
-		err := chat.chatRecordData.Add(cr)
+
+		err := chat.chatRecordData.AddSensitive(cr)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -217,7 +218,19 @@ func (chat *ChatService) ChatProcess(ctx *gin.Context) {
 				}
 				result.TokenCount = tokenCount
 				chat.store.Set(result.ID, result, chat.params.ChatSessionTTL)
-				chat.account.IncUsage(username, int64(tokenCount+numTokens-ChatPrimedTokens))
+				if err := chat.account.IncUsage(username, int64(tokenCount+numTokens-ChatPrimedTokens)); err != nil {
+					fmt.Println(err)
+				}
+
+				cr := &data.ChatRecord{
+					UserMassage: message.Text,
+					AIMessage:   result.Text,
+					CreateAt:    time.Now().Unix(),
+				}
+				if err := chat.chatRecordData.Add(cr); err != nil {
+					fmt.Println(err)
+				}
+
 			}()
 		}
 	}()
@@ -263,7 +276,9 @@ func (chat *ChatService) ChatProcess(ctx *gin.Context) {
 		}
 
 		if !firstChunk {
-			ctx.Writer.Write([]byte("\n"))
+			if _, err := ctx.Writer.Write([]byte("\n")); err != nil {
+				fmt.Println(err)
+			}
 		} else {
 			firstChunk = false
 		}
@@ -381,7 +396,9 @@ func (chat *ChatService) MessageProcess(ctx *gin.Context) {
 				}
 				result.TokenCount = tokenCount
 				chat.store.Set(result.ID, result, chat.params.ChatSessionTTL)
-				chat.account.IncUsage(username, int64(tokenCount+numTokens-ChatPrimedTokens))
+				if err := chat.account.IncUsage(username, int64(tokenCount+numTokens-ChatPrimedTokens)); err != nil {
+					fmt.Println(err)
+				}
 			}()
 		}
 	}()
@@ -400,7 +417,7 @@ func (chat *ChatService) MessageProcess(ctx *gin.Context) {
 
 func (chat *ChatService) buildMessage(payload ChatMessageRequest) ([]openai.ChatCompletionMessage, int, int, error) {
 	parentMessageId := payload.Options.ParentMessageId
-	messages := []openai.ChatCompletionMessage{}
+	var messages []openai.ChatCompletionMessage
 	tokenCount := 0
 	var err error
 	if len(payload.Prompt) > 0 {
@@ -427,7 +444,7 @@ func (chat *ChatService) buildMessage(payload ChatMessageRequest) ([]openai.Chat
 		if !ok {
 			break
 		}
-		parentCompletioMessage := openai.ChatCompletionMessage{
+		parentCompleteIOMessage := openai.ChatCompletionMessage{
 			Role:    parentMessage.Role,
 			Content: parentMessage.Text,
 			Name:    parentMessage.Name,
@@ -436,7 +453,7 @@ func (chat *ChatService) buildMessage(payload ChatMessageRequest) ([]openai.Chat
 			break
 		}
 		numTokens += parentMessage.TokenCount
-		messages = append(messages, parentCompletioMessage)
+		messages = append(messages, parentCompleteIOMessage)
 		parentMessageId = parentMessage.ParentMessageId
 	}
 	utils.Reverse(messages)
